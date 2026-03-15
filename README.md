@@ -1,4 +1,4 @@
-# 🛡️ UPI Fraud Detector | Hackathon Edition
+# 🛡️ Financial Fraud Detector | Hackathon Edition
 
 A cutting-edge web application for real-time UPI transaction fraud detection, built for 24-hour hackathons. Features AI-powered predictions, live simulation, advanced analytics, and a modern dashboard.
 
