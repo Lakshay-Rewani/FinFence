@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FINFENCE - AI-Powered Fraud Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Inter', sans-serif; }
+      .gradient-text {
+        background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .stat-card {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+      }
+      .pulse-glow {
+        animation: pulse-glow 2s ease-in-out infinite;
+      }
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+        50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.5); }
+      }
+      .risk-meter {
+        background: linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #ef4444 100%);
+      }
+      .shimmer {
+        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white">
+    <!-- Real-time Alert Banner -->
+    <div id="alert-banner" class="fixed top-0 left-0 right-0 z-50 hidden">
+      <div class="max-w-7xl mx-auto px-4 py-3">
+        <div class="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl shadow-2xl p-4 flex items-center justify-between animate-pulse">
+          <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            <div>
+              <p class="font-semibold">🚨 High Fraud Risk Detected!</p>
+              <p id="alert-details" class="text-sm opacity-90"></p>
+            </div>
+          </div>
+          <button onclick="document.getElementById('alert-banner').classList.add('hidden')" class="text-white/80 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold gradient-text">FINFENCE</h1>
+            <p class="mt-2 text-slate-300">AI-Powered Real-Time Transaction Risk Analysis</p>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <button id="theme-toggle" class="px-4 py-2 bg-indigo-600/50 hover:bg-indigo-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+              <span>Theme</span>
+            </button>
+            <button id="screenshot-btn" class="px-4 py-2 bg-pink-600/50 hover:bg-pink-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              <span>Analyze Screenshot</span>
+            </button>
+            <button id="alert-config-btn" class="px-4 py-2 bg-orange-600/50 hover:bg-orange-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+              <span>Alerts</span>
+            </button>
+            <button id="export-btn" class="px-4 py-2 bg-emerald-600/50 hover:bg-emerald-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              <span>Export CSV</span>
+            </button>
+            <button id="model-info-btn" class="px-4 py-2 bg-purple-600/50 hover:bg-purple-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>Model Info</span>
+            </button>
+            <button id="chat-btn" class="px-4 py-2 bg-blue-600/50 hover:bg-blue-600 rounded-lg transition flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+              <span>AI Assistant</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Stats Dashboard -->
+      <div id="stats-dashboard" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="glass-card rounded-xl p-4 stat-card">
+          <p class="text-sm text-slate-400">Total Transactions</p>
+          <p id="stat-total" class="text-2xl font-bold">0</p>
+        </div>
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-sm text-slate-400">Fraud Detected</p>
+          <p id="stat-fraud" class="text-2xl font-bold text-rose-400">0</p>
+        </div>
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-sm text-slate-400">Fraud Rate</p>
+          <p id="stat-rate" class="text-2xl font-bold text-amber-400">0%</p>
+        </div>
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-sm text-slate-400">High Risk Alerts</p>
+          <p id="stat-high-risk" class="text-2xl font-bold text-red-400">0</p>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="grid lg:grid-cols-3 gap-6 mb-8">
+        <!-- Form Section -->
+        <section class="lg:col-span-1 glass-card rounded-2xl p-6 shadow-lg">
+          <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Transaction Details
+          </h2>
+
+          <form id="transaction-form" class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Amount (₹)</span>
+                <input id="amount" name="amount" type="number" step="0.01" value="100.00" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">Frequency</span>
+                <input id="frequency" name="frequency" type="number" value="1" min="0" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Amount Deviation</span>
+                <input id="deviation" name="deviation" type="number" step="0.01" value="0.00" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">Days Since Last</span>
+                <input id="days_since" name="days_since" type="number" value="0" min="0" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+            </div>
+
+            <label class="block">
+              <span class="text-xs text-slate-300">IP Address (for location risk)</span>
+              <input id="ip" name="ip" type="text" value="8.8.8.8" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" placeholder="e.g., 192.168.1.1" />
+            </label>
+
+            <div class="grid grid-cols-3 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Hour</span>
+                <input id="hour" name="hour" type="number" min="0" max="23" value="12" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">Day</span>
+                <input id="day" name="day" type="number" min="0" max="6" value="0" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">Month</span>
+                <input id="month" name="month" type="number" min="1" max="12" value="1" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm" required />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Transaction Type</span>
+                <select id="trans_type" name="trans_type" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  {% for t in config.transaction_types %}
+                  <option value="{{ t }}">{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-xs text-slate-300">Payment Gateway</span>
+                <select id="gateway" name="gateway" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  {% for g in config.gateways %}
+                  <option value="{{ g }}">{{ g }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Device OS</span>
+                <select id="device" name="device" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  {% for d in config.devices %}
+                  <option value="{{ d }}">{{ d }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">Merchant Category</span>
+                <select id="merchant" name="merchant" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  {% for m in config.merchants %}
+                  <option value="{{ m }}">{{ m }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-xs text-slate-300">Channel</span>
+                <select id="channel" name="channel" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  <option value="Mobile">Mobile</option>
+                  <option value="Online">Online</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-300">State</span>
+                <select id="state" name="state" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                  {% for s in config.states %}
+                  <option value="{{ s }}">{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
+            <label class="block">
+              <span class="text-xs text-slate-300">City</span>
+              <select id="city" name="city" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-white text-sm">
+                {% for c in config.cities %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+              <input id="explain" type="checkbox" name="explain" value="yes" class="h-4 w-4 rounded border border-slate-700 bg-slate-950 text-indigo-500" {% if not openai_enabled %}disabled{% endif %} />
+              Generate AI explanation
+            </label>
+
+            <button id="submit" type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 font-semibold text-white shadow-lg hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition transform hover:scale-[1.02] active:scale-[0.98]">
+              Analyze Transaction
+            </button>
+          </form>
+        </section>
+
+        <!-- Result Section -->
+        <section class="lg:col-span-2 glass-card rounded-2xl p-6 shadow-lg">
+          <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Analysis Result
+          </h2>
+
+          <div id="result" class="space-y-4">
+            <div class="text-center py-12 text-slate-400">
+              <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+              <p>Fill in the form and click <strong>Analyze</strong> to see the prediction.</p>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="grid md:grid-cols-2 gap-4 mt-6">
+            <div>
+              <h3 class="text-sm font-semibold mb-2 text-slate-300">Fraud Distribution</h3>
+              <canvas id="pieChart" width="200" height="200"></canvas>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold mb-2 text-slate-300">Risk by Hour</h3>
+              <canvas id="hourChart" width="200" height="200"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Transaction History & Live Feed -->
+      <div class="grid lg:grid-cols-2 gap-6 mb-8">
+        <!-- Transaction History -->
+        <section class="glass-card rounded-2xl p-6 shadow-lg">
+          <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Recent Transactions
+          </h2>
+          <div class="overflow-x-auto max-h-64">
+            <table class="w-full text-sm">
+              <thead class="text-xs text-slate-400 border-b border-slate-700">
+                <tr>
+                  <th class="py-2 text-left">ID</th>
+                  <th class="py-2 text-left">Amount</th>
+                  <th class="py-2 text-left">Result</th>
+                  <th class="py-2 text-left">Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="history-table" class="text-slate-300">
+                <tr><td colspan="4" class="py-4 text-center text-slate-500">No transactions yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Live Feed -->
+        <section class="glass-card rounded-2xl p-6 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold flex items-center gap-2">
+              <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              Live Transaction Feed
+            </h2>
+            <button id="start-sim" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Start Simulation
+            </button>
+          </div>
+          <div id="feed-list" class="space-y-2 max-h-64 overflow-y-auto pr-2"></div>
+        </section>
+      </div>
+
+      <!-- Map Section -->
+      <section class="glass-card rounded-2xl p-6 shadow-lg mb-8">
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          Transaction Location Map
+        </h2>
+        <div id="map" style="height: 350px; width: 100%; border-radius: 12px;"></div>
+      </section>
+
+      <footer class="text-center text-sm text-slate-500 py-4">
+        Powered by Flask + SocketIO • ML Model: DecisionTreeClassifier
+      </footer>
+    </div>
+
+    <!-- Model Info Modal -->
+    <div id="model-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold">Model Information</h3>
+          <button id="close-modal" class="text-slate-400 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div id="model-info-content" class="space-y-4">
+          <div class="shimmer h-20 rounded-lg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Configuration Modal -->
+    <div id="alert-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            Alert Configuration
+          </h3>
+          <button id="close-alert-modal" class="text-slate-400 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p class="text-sm text-blue-300">💡 Alerts are automatically sent when fraud confidence exceeds 70%</p>
+          </div>
+
+          <!-- Email Alerts -->
+          <div class="space-y-3">
+            <h4 class="font-semibold text-lg">📧 Email Alerts</h4>
+            <label class="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+              <input type="checkbox" id="email-enabled" class="w-5 h-5 rounded border-slate-700 bg-slate-900 text-orange-500 focus:ring-orange-500" />
+              <span class="text-sm">Enable Email Notifications</span>
+            </label>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Alert Email Address</label>
+              <input type="email" id="alert-email" placeholder="your@email.com" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white text-sm" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">SMTP Server</label>
+                <input type="text" id="smtp-server" value="smtp.gmail.com" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">SMTP Port</label>
+                <input type="number" id="smtp-port" value="587" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white text-sm" />
+              </div>
+            </div>
+          </div>
+
+          <!-- SMS Alerts -->
+          <div class="space-y-3">
+            <h4 class="font-semibold text-lg">📱 SMS Alerts (Twilio)</h4>
+            <label class="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+              <input type="checkbox" id="sms-enabled" class="w-5 h-5 rounded border-slate-700 bg-slate-900 text-orange-500 focus:ring-orange-500" />
+              <span class="text-sm">Enable SMS Notifications</span>
+            </label>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Phone Number (with country code)</label>
+              <input type="tel" id="alert-phone" placeholder="+1234567890" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white text-sm" />
+            </div>
+          </div>
+
+          <button id="save-alert-config" class="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 font-semibold text-white shadow-lg hover:from-orange-600 hover:to-red-600 transition">
+            Save Configuration
+          </button>
+
+          <div id="alert-save-message" class="text-center text-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Configuration
+      window.APP_CONFIG = JSON.parse('{{ {"openaiEnabled": false} | tojson }}');
+
+      // Socket.IO
+      const socket = io();
+      const feedList = document.getElementById('feed-list');
+      const startSimBtn = document.getElementById('start-sim');
+
+      // Handle real-time high-risk alerts
+      socket.on('high_risk_alert', (data) => {
+        // Show alert banner
+        const alertBanner = document.getElementById('alert-banner');
+        const alertDetails = document.getElementById('alert-details');
+        alertDetails.textContent = `${data.message} • Confidence: ${data.confidence}% • ${data.location.city}`;
+        alertBanner.classList.remove('hidden');
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+          alertBanner.classList.add('hidden');
+        }, 10000);
+        
+        // Also show browser notification
+        if (Notification.permission === 'granted') {
+          new Notification('🚨 High Fraud Risk Alert!', {
+            body: `${data.message}\nConfidence: ${data.confidence}%`,
+            icon: '/static/icon-192.png',
+            requireInteraction: true
+          });
+        }
+      });
+
+      // Charts
+      let pieChart, hourChart;
+      const analyticsData = {
+        fraud: 0,
+        notFraud: 0,
+        riskByHour: {}
+      };
+
+      function initCharts() {
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        pieChart = new Chart(pieCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Not Fraud', 'Fraud'],
+            datasets: [{
+              data: [1, 0],
+              backgroundColor: ['#10b981', '#ef4444'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+            }
+          }
+        });
+
+        const hourCtx = document.getElementById('hourChart').getContext('2d');
+        hourChart = new Chart(hourCtx, {
+          type: 'bar',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => i.toString()),
+            datasets: [{
+              label: 'Fraud Count',
+              data: Array(24).fill(0),
+              backgroundColor: 'rgba(239, 68, 68, 0.5)'
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, ticks: { color: '#94a3b8' } },
+              x: { ticks: { color: '#94a3b8' } }
+            },
+            plugins: {
+              legend: { labels: { color: '#94a3b8' } }
+            }
+          }
+        });
+      }
+
+      function updateCharts(data) {
+        if (data.fraud) analyticsData.fraud++;
+        else analyticsData.notFraud++;
+
+        pieChart.data.datasets[0].data = [analyticsData.notFraud, analyticsData.fraud];
+        pieChart.update();
+      }
+
+      // Fetch analytics
+      async function fetchAnalytics() {
+        try {
+          const response = await fetch('/api/analytics');
+          const data = await response.json();
+          
+          document.getElementById('stat-total').textContent = data.total_transactions;
+          document.getElementById('stat-fraud').textContent = data.fraud_count;
+          document.getElementById('stat-rate').textContent = data.fraud_rate + '%';
+          document.getElementById('stat-high-risk').textContent = data.high_risk_count;
+
+          // Update pie chart
+          analyticsData.fraud = data.fraud_count;
+          analyticsData.notFraud = data.not_fraud_count;
+          pieChart.data.datasets[0].data = [data.not_fraud_count, data.fraud_count];
+          pieChart.update();
+
+          // Update hour chart
+          const hourData = Array(24).fill(0);
+          for (const [hour, vals] of Object.entries(data.risk_by_hour || {})) {
+            hourData[parseInt(hour)] = vals.fraud;
+          }
+          hourChart.data.datasets[0].data = hourData;
+          hourChart.update();
+        } catch (e) {
+          console.error('Analytics error:', e);
+        }
+      }
+
+      // Fetch history
+      async function fetchHistory() {
+        try {
+          const response = await fetch('/api/history?limit=10');
+          const data = await response.json();
+          
+          const tbody = document.getElementById('history-table');
+          if (!data.history || data.history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-500">No transactions yet</td></tr>';
+            return;
+          }
+          
+          tbody.innerHTML = data.history.reverse().map(t => `
+            <tr class="border-b border-slate-800 hover:bg-white/5">
+              <td class="py-2">#${t.id}</td>
+              <td class="py-2">₹${t.data.amount}</td>
+              <td class="py-2"><span class="px-2 py-1 rounded text-xs ${t.result.fraud ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">${t.result.label}</span></td>
+              <td class="py-2">${t.result.confidence}%</td>
+            </tr>
+          `).join('');
+        } catch (e) {
+          console.error('History error:', e);
+        }
+      }
+
+      // Socket events
+      socket.on('new_transaction', (data) => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-white/5 rounded-lg border-l-4 ' + (data.result.fraud ? 'border-rose-500' : 'border-emerald-500');
+        item.innerHTML = `
+          <div class="flex justify-between items-start">
+            <p class="font-medium">₹${data.data.amount}</p>
+            <span class="px-2 py-1 rounded text-xs ${data.result.fraud ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">${data.result.label}</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">${data.data.trans_type} • ${data.result.location.city}</p>
+        `;
+        feedList.insertBefore(item, feedList.firstChild);
+        if (feedList.children.length > 20) feedList.lastChild.remove();
+        
+        updateCharts(data.result);
+        fetchAnalytics();
+        fetchHistory();
+      });
+
+      let simInterval;
+      startSimBtn.addEventListener('click', () => {
+        if (simInterval) {
+          clearInterval(simInterval);
+          simInterval = null;
+          startSimBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Start Simulation';
+        } else {
+          socket.emit('simulate_transaction');
+          simInterval = setInterval(() => socket.emit('simulate_transaction'), 3000);
+          startSimBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg> Stop Simulation';
+        }
+      });
+
+      // Form submission
+      const form = document.getElementById('transaction-form');
+      const resultEl = document.getElementById('result');
+      const submitBtn = document.getElementById('submit');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+        
+        payload.amount = parseFloat(payload.amount);
+        payload.frequency = parseInt(payload.frequency);
+        payload.deviation = parseFloat(payload.deviation);
+        payload.days_since = parseInt(payload.days_since);
+        payload.hour = parseInt(payload.hour);
+        payload.day = parseInt(payload.day);
+        payload.month = parseInt(payload.month);
+        payload.explain = formData.get('explain') === 'yes';
+        payload.ip = payload.ip || '8.8.8.8';
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Analyzing...';
+        resultEl.innerHTML = '<div class="flex items-center justify-center py-12"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>';
+
+        try {
+          const response = await fetch('/api/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          
+          const labelColor = data.fraud ? 'text-rose-400' : 'text-emerald-400';
+          const bgColor = data.fraud ? 'from-rose-500/20 to-red-500/20' : 'from-emerald-500/20 to-green-500/20';
+          
+          resultEl.innerHTML = `
+            <div class="rounded-xl p-6 bg-gradient-to-br ${bgColor} border border-white/10">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="text-sm text-slate-300">Predicted</p>
+                  <p class="text-3xl font-bold ${labelColor}">${data.label}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-slate-300">Confidence</p>
+                  <p class="text-2xl font-bold">${data.confidence}%</p>
+                </div>
+              </div>
+              
+              <!-- Risk Meter -->
+              <div class="mt-4">
+                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Safe</span>
+                  <span>Risk Level</span>
+                  <span>High Risk</span>
+                </div>
+                <div class="h-2 rounded-full risk-meter">
+                  <div class="h-full rounded-full bg-white/30" style="width: ${data.proba_fraud}%"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+                <div>
+                  <p class="text-slate-400">Not Fraud Probability</p>
+                  <p class="font-semibold text-emerald-400">${data.proba_not_fraud}%</p>
+                </div>
+                <div>
+                  <p class="text-slate-400">Fraud Probability</p>
+                  <p class="font-semibold text-rose-400">${data.proba_fraud}%</p>
+                </div>
+              </div>
+
+              <div class="mt-4 p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Location</p>
+                <p class="text-sm">${data.location.city}, ${data.location.country}</p>
+              </div>
+
+              ${data.ai_explanation ? `
+              <div class="mt-4 p-3 bg-indigo-500/20 rounded-lg">
+                <p class="text-xs text-indigo-300 font-semibold">AI Explanation</p>
+                <p class="text-sm text-slate-200 mt-1">${data.ai_explanation}</p>
+              </div>
+              ` : ''}
+            </div>
+          `;
+
+          // Update map
+          if (window.mapInstance && data.location.lat && data.location.lon) {
+            window.mapInstance.setView([data.location.lat, data.location.lon], 10);
+            L.marker([data.location.lat, data.location.lon]).addTo(window.mapInstance)
+              .bindPopup(`<b>${data.label}</b><br>₹${data.amount}<br>${data.location.city}`)
+              .openPopup();
+          }
+
+          // Notification
+          if (data.fraud && data.confidence > 70) {
+            if (Notification.permission === 'granted') {
+              new Notification('🚨 High Fraud Risk!', {
+                body: `Transaction ₹${data.amount} flagged as ${data.label} with ${data.confidence}% confidence`,
+                icon: '/static/icon-192.png'
+              });
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission();
+            }
+          }
+
+          updateCharts(data);
+          fetchAnalytics();
+          fetchHistory();
+        } catch (error) {
+          resultEl.innerHTML = `<div class="p-4 bg-rose-500/20 border border-rose-500 rounded-lg"><p class="text-rose-300">Error: ${error.message}</p></div>`;
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Analyze Transaction';
+        }
+      });
+
+      // Export button
+      document.getElementById('export-btn').addEventListener('click', () => {
+        window.location.href = '/api/export';
+      });
+
+      // Model info modal
+      const modal = document.getElementById('model-modal');
+      document.getElementById('model-info-btn').addEventListener('click', async () => {
+        modal.classList.remove('hidden');
+        try {
+          const response = await fetch('/api/model-info');
+          const data = await response.json();
+          
+          const content = document.getElementById('model-info-content');
+          let importanceHtml = '';
+          if (data.feature_importance) {
+            importanceHtml = `
+              <div class="mt-4">
+                <p class="text-sm text-slate-400 mb-2">Top Features</p>
+                <div class="space-y-2">
+                  ${Object.entries(data.feature_importance).map(([name, val]) => `
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-slate-300 truncate flex-1">${name}</span>
+                      <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-indigo-500" style="width: ${val * 100}%"></div>
+                      </div>
+                      <span class="text-xs text-slate-400 w-12 text-right">${(val * 100).toFixed(1)}%</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+          
+          content.innerHTML = `
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Model Type</p>
+                <p class="font-semibold">${data.model_type}</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Features</p>
+                <p class="font-semibold">${data.num_features}</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Training Data</p>
+                <p class="font-semibold">${data.training_info}</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Version</p>
+                <p class="font-semibold">${data.version}</p>
+              </div>
+            </div>
+            ${importanceHtml}
+          `;
+        } catch (e) {
+          document.getElementById('model-info-content').innerHTML = '<p class="text-rose-400">Failed to load model info</p>';
+        }
+      });
+
+      document.getElementById('close-modal').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        
+        // Map
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+        window.mapInstance = map;
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+        themeToggle.addEventListener('click', () => {
+          document.body.classList.toggle('light-mode');
+          localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        });
+        
+        // Alert Configuration Modal
+        const alertModal = document.getElementById('alert-modal');
+        const alertConfigBtn = document.getElementById('alert-config-btn');
+        const closeAlertModal = document.getElementById('close-alert-modal');
+        const saveAlertConfig = document.getElementById('save-alert-config');
+        const alertSaveMessage = document.getElementById('alert-save-message');
+        
+        alertConfigBtn.addEventListener('click', async () => {
+          alertModal.classList.remove('hidden');
+                
+          // Load current configuration
+          try {
+            const response = await fetch('/api/alert-config');
+            const config = await response.json();
+                  
+            document.getElementById('email-enabled').checked = config.email_enabled;
+            document.getElementById('sms-enabled').checked = config.sms_enabled;
+            document.getElementById('alert-email').value = config.alert_email || '';
+            document.getElementById('alert-phone').value = config.alert_phone || '';
+            document.getElementById('smtp-server').value = config.smtp_server || 'smtp.gmail.com';
+            document.getElementById('smtp-port').value = config.smtp_port || 587;
+          } catch (error) {
+            console.error('Failed to load alert config:', error);
+          }
+        });
+        
+        closeAlertModal.addEventListener('click', () => {
+          alertModal.classList.add('hidden');
+          alertSaveMessage.textContent = '';
+        });
+        
+        alertModal.addEventListener('click', (e) => {
+          if (e.target === alertModal) {
+            alertModal.classList.add('hidden');
+            alertSaveMessage.textContent = '';
+          }
+        });
+        
+        saveAlertConfig.addEventListener('click', async () => {
+          const config = {
+            email_enabled: document.getElementById('email-enabled').checked,
+            sms_enabled: document.getElementById('sms-enabled').checked,
+            alert_email: document.getElementById('alert-email').value,
+            alert_phone: document.getElementById('alert-phone').value,
+            smtp_server: document.getElementById('smtp-server').value,
+            smtp_port: parseInt(document.getElementById('smtp-port').value)
+          };
+        
+          try {
+            const response = await fetch('/api/alert-config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(config)
+            });
+                  
+            const result = await response.json();
+                  
+            if (result.success) {
+              alertSaveMessage.innerHTML = '<span class="text-emerald-400">✅ Configuration saved successfully!</span>';
+              setTimeout(() => {
+                alertModal.classList.add('hidden');
+                alertSaveMessage.textContent = '';
+              }, 2000);
+            } else {
+              alertSaveMessage.innerHTML = '<span class="text-rose-400">❌ Failed to save configuration</span>';
+            }
+          } catch (error) {
+            alertSaveMessage.innerHTML = '<span class="text-rose-400">❌ Error saving configuration</span>';
+          }
+        });
+        
+        // Request notification permission on page load
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+
+        // Screenshot Analyzer Functionality
+        const screenshotBtn = document.getElementById('screenshot-btn');
+        const screenshotModal = document.getElementById('screenshot-modal');
+        const closeScreenshotModal = document.getElementById('close-screenshot-modal');
+        const uploadArea = document.getElementById('upload-area');
+        const screenshotInput = document.getElementById('screenshot-input');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const analysisLoading = document.getElementById('analysis-loading');
+        const analysisResults = document.getElementById('analysis-results');
+
+        let selectedFile = null;
+
+        // Open modal
+        screenshotBtn.addEventListener('click', () => {
+          screenshotModal.classList.remove('hidden');
+        });
+
+        // Close modal
+        closeScreenshotModal.addEventListener('click', () => {
+          screenshotModal.classList.add('hidden');
+          resetAnalyzer();
+        });
+
+        screenshotModal.addEventListener('click', (e) => {
+          if (e.target === screenshotModal) {
+            screenshotModal.classList.add('hidden');
+            resetAnalyzer();
+          }
+        });
+
+        // File upload handling
+        uploadArea.addEventListener('click', () => {
+          screenshotInput.click();
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadArea.classList.add('border-pink-500');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+          uploadArea.classList.remove('border-pink-500');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove('border-pink-500');
+          
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            handleFileSelect(files[0]);
+          }
+        });
+
+        screenshotInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+          }
+        });
+
+        function handleFileSelect(file) {
+          // Validate file type
+          const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+          if (!validTypes.includes(file.type)) {
+            alert('Please upload a PNG, JPG, or WebP image');
+            return;
+          }
+
+          selectedFile = file;
+          
+          // Show preview
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            imagePreviewContainer.classList.remove('hidden');
+            uploadArea.classList.add('hidden');
+            analyzeBtn.disabled = false;
+          };
+          reader.readAsDataURL(file);
+        }
+
+        // Remove image
+        removeImageBtn.addEventListener('click', () => {
+          resetAnalyzer();
+        });
+
+        function resetAnalyzer() {
+          selectedFile = null;
+          screenshotInput.value = '';
+          imagePreview.src = '';
+          imagePreviewContainer.classList.add('hidden');
+          uploadArea.classList.remove('hidden');
+          analyzeBtn.disabled = true;
+          analysisResults.classList.add('hidden');
+          analysisLoading.classList.add('hidden');
+        }
+
+        // Analyze button
+        analyzeBtn.addEventListener('click', async () => {
+          if (!selectedFile) return;
+
+          // Show loading
+          analyzeBtn.disabled = true;
+          analysisLoading.classList.remove('hidden');
+          analysisResults.classList.add('hidden');
+
+          // Upload and analyze
+          const formData = new FormData();
+          formData.append('screenshot', selectedFile);
+
+          try {
+            const response = await fetch('/api/analyze-screenshot', {
+              method: 'POST',
+              body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              displayAnalysisResults(result);
+            } else {
+              alert('Analysis failed: ' + (result.error || 'Unknown error'));
+            }
+          } catch (error) {
+            console.error('Analysis error:', error);
+            alert('Failed to analyze screenshot. Please try again.');
+          } finally {
+            analysisLoading.classList.add('hidden');
+            analyzeBtn.disabled = false;
+          }
+        });
+
+        function displayAnalysisResults(result) {
+          // Authenticity score
+          const scoreEl = document.getElementById('authenticity-score');
+          const riskLevelEl = document.getElementById('risk-level');
+          const badgeEl = document.getElementById('authenticity-badge');
+          
+          scoreEl.textContent = result.authenticity_score + '%';
+          riskLevelEl.textContent = result.risk_level;
+          
+          // Color coding
+          if (result.authenticity_score >= 80) {
+            badgeEl.className = 'p-4 rounded-xl border-2 bg-emerald-500/10 border-emerald-500';
+            scoreEl.className = 'text-3xl font-bold mt-1 text-emerald-400';
+            riskLevelEl.className = 'text-lg font-semibold mt-1 text-emerald-400';
+          } else if (result.authenticity_score >= 60) {
+            badgeEl.className = 'p-4 rounded-xl border-2 bg-amber-500/10 border-amber-500';
+            scoreEl.className = 'text-3xl font-bold mt-1 text-amber-400';
+            riskLevelEl.className = 'text-lg font-semibold mt-1 text-amber-400';
+          } else {
+            badgeEl.className = 'p-4 rounded-xl border-2 bg-rose-500/10 border-rose-500';
+            scoreEl.className = 'text-3xl font-bold mt-1 text-rose-400';
+            riskLevelEl.className = 'text-lg font-semibold mt-1 text-rose-400';
+          }
+
+          // Extracted details
+          document.getElementById('extracted-amount').textContent = result.extracted_data.amount ? '₹' + result.extracted_data.amount : '--';
+          document.getElementById('extracted-status').textContent = result.extracted_data.status || '--';
+          document.getElementById('extracted-txn-id').textContent = result.extracted_data.transaction_id || '--';
+          document.getElementById('extracted-phone').textContent = result.extracted_data.phone_number || '--';
+
+          // Warnings
+          const warningsSection = document.getElementById('warnings-section');
+          const warningsList = document.getElementById('warnings-list');
+          
+          if (result.manipulation_detected) {
+            warningsSection.classList.remove('hidden');
+            warningsList.innerHTML = result.warnings.map(w => `<li>• ${w}</li>`).join('');
+          } else {
+            warningsSection.classList.add('hidden');
+          }
+
+          // Summary
+          document.getElementById('analysis-summary').textContent = result.summary;
+
+          // Show results
+          analysisResults.classList.remove('hidden');
+        }
+
+        // Initial data
+        fetchAnalytics();
+        fetchHistory();
+      });
+    </script>
+    
+    <!-- Screenshot Analyzer Modal -->
+    <div id="screenshot-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Smart Screenshot Analyzer
+          </h3>
+          <button id="close-screenshot-modal" class="text-slate-400 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="p-4 bg-pink-500/10 border border-pink-500/30 rounded-lg">
+            <p class="text-sm text-pink-300">🔍 Upload UPI payment screenshots to verify authenticity and extract transaction details</p>
+          </div>
+
+          <!-- Upload Area -->
+          <div id="upload-area" class="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-pink-500 transition cursor-pointer bg-slate-900/50">
+            <input type="file" id="screenshot-input" accept="image/*" class="hidden" />
+            <svg class="w-16 h-16 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <p class="text-slate-300 font-medium mb-2">Drag & drop your screenshot here</p>
+            <p class="text-sm text-slate-500">or click to browse (PNG, JPG, WebP)</p>
+          </div>
+
+          <!-- Image Preview -->
+          <div id="image-preview-container" class="hidden">
+            <div class="relative rounded-xl overflow-hidden border border-slate-700">
+              <img id="image-preview" src="" alt="Preview" class="w-full h-auto" />
+              <button id="remove-image" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Analyze Button -->
+          <button id="analyze-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 font-semibold text-white shadow-lg hover:from-pink-600 hover:to-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            Analyze Screenshot
+          </button>
+
+          <!-- Loading State -->
+          <div id="analysis-loading" class="hidden text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500 mx-auto mb-4"></div>
+            <p class="text-slate-300">Analyzing screenshot...</p>
+            <p class="text-sm text-slate-500 mt-2">Extracting text and detecting manipulation</p>
+          </div>
+
+          <!-- Results -->
+          <div id="analysis-results" class="hidden space-y-4">
+            <!-- Authenticity Badge -->
+            <div id="authenticity-badge" class="p-4 rounded-xl border-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs text-slate-400 uppercase tracking-wide">Authenticity Score</p>
+                  <p id="authenticity-score" class="text-3xl font-bold mt-1">--</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-slate-400 uppercase tracking-wide">Risk Level</p>
+                  <p id="risk-level" class="text-lg font-semibold mt-1">--</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Extracted Details -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Amount</p>
+                <p id="extracted-amount" class="font-semibold text-emerald-400">--</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Status</p>
+                <p id="extracted-status" class="font-semibold">--</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Transaction ID</p>
+                <p id="extracted-txn-id" class="font-semibold text-sm truncate">--</p>
+              </div>
+              <div class="p-3 bg-white/5 rounded-lg">
+                <p class="text-xs text-slate-400">Phone Number</p>
+                <p id="extracted-phone" class="font-semibold">--</p>
+              </div>
+            </div>
+
+            <!-- Manipulation Warnings -->
+            <div id="warnings-section" class="hidden">
+              <p class="text-sm font-semibold text-rose-400 mb-2">⚠️ Manipulation Detected:</p>
+              <ul id="warnings-list" class="text-sm text-slate-300 space-y-1"></ul>
+            </div>
+
+            <!-- Summary -->
+            <div class="p-4 bg-indigo-500/20 border border-indigo-500/30 rounded-lg">
+              <p class="text-xs text-indigo-300 font-semibold mb-1">Analysis Summary</p>
+              <p id="analysis-summary" class="text-sm text-slate-200"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="fixed inset-0 bg-black/50 hidden z-50">
+      <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-800 rounded-xl w-full max-w-md h-96 flex flex-col">
+          <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h3 class="text-lg font-semibold">AI Finance Assistant</h3>
+            <button id="close-chat" class="text-slate-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+          <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3"></div>
+          <div class="p-4 border-t border-slate-700">
+            <div class="flex gap-2">
+              <input id="chat-input" type="text" placeholder="Ask about finance, fraud, or transactions..." class="flex-1 px-3 py-2 bg-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <button id="voice-btn" class="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+              </button>
+              <button id="send-chat" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>
